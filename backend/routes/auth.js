@@ -49,7 +49,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// LOGIN ENDPOINT
+// LOGIN ENDPOINT (Modified to pass entire payload: email, avatar, etc.)
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -65,11 +65,64 @@ router.post('/login', async (req, res) => {
     res.status(200).json({ 
       success: true, 
       message: `Welcome back, ${user.name}!`, 
-      user: { id: user._id, name: user.name, username: user.username } 
+      user: { 
+        id: user._id, 
+        name: user.name, 
+        username: user.username, 
+        email: user.email, 
+        avatar: user.avatar || '' 
+      } 
     });
   } catch (error) {
     console.error("❌ ERROR DETECTED IN LOGIN ROUTE:", error);
     res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
+
+// PROFILE UPDATE ENDPOINT (Added feature)
+router.put('/update-profile', async (req, res) => {
+  try {
+    const { userId, name, email, avatar, password } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User session not found." });
+    }
+
+    // Verify if email is being updated to an email already assigned to a different user account
+    if (email !== user.email) {
+      const emailConflict = await User.findOne({ email });
+      if (emailConflict) {
+        return res.status(400).json({ success: false, message: "This email address is already in use by another user." });
+      }
+      user.email = email;
+    }
+
+    user.name = name;
+    if (avatar !== undefined) user.avatar = avatar;
+
+    // Explicitly update and re-hash password strings manually if changed
+    if (password && password.trim() !== '') {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully!",
+      user: {
+        id: user._id,
+        name: user.name,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar || ''
+      }
+    });
+  } catch (error) {
+    console.error("❌ ERROR IN UPDATE PROFILE ROUTE:", error);
+    res.status(500).json({ success: false, message: "Server encountered error during update profile." });
   }
 });
 

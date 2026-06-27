@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-function AuthModal({ isOpen, onClose }) {
+function AuthModal({ isOpen, onClose, onLoginSuccess }) {
   const [isLoginView, setIsLoginView] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -110,8 +110,17 @@ function AuthModal({ isOpen, onClose }) {
       const data = await response.json();
       
       if (response.ok) {
-        alert(data.message);
-        onClose();
+        if (isLoginView) {
+          // 1. Persist user session data locally to keep profile active on page refresh
+          localStorage.setItem("roam_user_session", JSON.stringify(data.user));
+
+          // 2. Send complete server payload upstream to App state logic if logged in
+          if (onLoginSuccess) onLoginSuccess(data.user);
+          onClose();
+        } else {
+          alert(data.message);
+          setIsLoginView(true); // Flip over into the login panel automatically
+        }
       } else {
         alert(data.message || "Something went wrong.");
       }
